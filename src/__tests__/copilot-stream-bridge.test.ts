@@ -415,6 +415,51 @@ describe("CopilotStreamBridge", () => {
     });
   });
 
+  describe("tool deduplication", () => {
+    it("should deduplicate tools by name when creating SDK session", async () => {
+      const fn = bridge.createStreamFn();
+      const model = makeModel();
+      const duplicateTool = {
+        name: "bash",
+        description: "Run bash (duplicate)",
+        parameters: { type: "object", properties: {} },
+        execute: async () => ({
+          content: [{ type: "text" as const, text: "result" }],
+        }),
+      };
+      const context = {
+        systemPrompt: "Test",
+        messages: [{ role: "user", content: "hello" }],
+        tools: [
+          {
+            name: "bash",
+            description: "Run bash",
+            parameters: { type: "object", properties: {} },
+            execute: async () => ({
+              content: [{ type: "text" as const, text: "result" }],
+            }),
+          },
+          duplicateTool,
+        ],
+      };
+
+      const stream = fn(model, context as any);
+
+      setTimeout(async () => {
+        while (client.sessions.length === 0) await new Promise(r => setTimeout(r, 10));
+        const session = client.sessions[0];
+        // Verify SDK session was created with deduplicated tools
+        expect(session.config.tools).toHaveLength(1);
+        expect(session.config.tools[0].name).toBe("bash");
+        // Verify availableTools is empty to disable built-in CLI tools
+        expect(session.config.availableTools).toEqual([]);
+        session.emit({ type: "session.idle", data: {} });
+      }, 100);
+
+      for await (const _event of stream as any) { /* drain */ }
+    }, 10000);
+  });
+
   describe("conversation serialization", () => {
     it("should serialize user messages", async () => {
       const fn = bridge.createStreamFn();

@@ -351,7 +351,11 @@ export class CopilotStreamBridge {
     context: Context,
     options?: SimpleStreamOptions,
   ): Promise<void> {
-    const sdkTools = this.currentTools.map((tool) => ({
+    // Deduplicate tools by name (last occurrence wins, matching pi-mono's Map override semantics)
+    const deduped = new Map(this.currentTools.map((t) => [t.name, t]));
+    const uniqueTools = Array.from(deduped.values());
+
+    const sdkTools = uniqueTools.map((tool) => ({
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters,
@@ -389,7 +393,7 @@ export class CopilotStreamBridge {
       model: model.id,
       streaming: true,
       tools: sdkTools,
-      availableTools: sdkTools.map((t) => t.name),
+      availableTools: [],
       systemMessage: {
         mode: "replace",
         content: context.systemPrompt || "You are a helpful coding assistant.",

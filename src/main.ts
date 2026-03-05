@@ -31,7 +31,7 @@ import { createRemoteTools } from "./remote-tools.js";
 
 // ─── CLI Argument Parsing ────────────────────────────────────────────────────
 
-interface CliArgs {
+export interface CliArgs {
   codespaces: string[];
   ssh?: { host: string; remotePath: string };
   devcontainer: boolean;
@@ -39,7 +39,7 @@ interface CliArgs {
   workdir: string;
 }
 
-function parseArgs(argv: string[]): CliArgs {
+export function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
     codespaces: [],
     devcontainer: false,

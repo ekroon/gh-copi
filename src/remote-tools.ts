@@ -279,6 +279,6 @@ function createLsTool(transport: RemoteTransport, workdir: string): RemoteAgentT
   };
 }
 
-function shellEscape(s: string): string {
+export function shellEscape(s: string): string {
   return `'${s.replace(/'/g, "'\\''")}'`;
 }

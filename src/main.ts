@@ -256,7 +256,16 @@ async function main() {
   await client.stop();
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err.message || err);
-  process.exit(1);
-});
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+
+const isEntryPoint =
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isEntryPoint) {
+  main().catch((err) => {
+    console.error("Fatal error:", err.message || err);
+    process.exit(1);
+  });
+}

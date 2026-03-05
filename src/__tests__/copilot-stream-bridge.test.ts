@@ -451,8 +451,8 @@ describe("CopilotStreamBridge", () => {
         // Verify SDK session was created with deduplicated tools
         expect(session.config.tools).toHaveLength(1);
         expect(session.config.tools[0].name).toBe("bash");
-        // Verify availableTools is empty to disable built-in CLI tools
-        expect(session.config.availableTools).toEqual([]);
+        // Verify conflicting built-in tools are excluded
+        expect(session.config.excludedTools).toContain("bash");
         session.emit({ type: "session.idle", data: {} });
       }, 100);
 

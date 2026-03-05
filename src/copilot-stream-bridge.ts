@@ -388,12 +388,21 @@ export class CopilotStreamBridge {
       ? (reasoning as "low" | "medium" | "high")
       : undefined;
 
+    // Exclude built-in CLI tools that conflict with our custom tools.
+    // This keeps built-in agents (task, explore, code-review, research) enabled.
+    const customToolNames = new Set(sdkTools.map((t) => t.name));
+    const BUILTIN_CLI_TOOLS = [
+      "bash", "read", "edit", "write", "grep", "glob", "view",
+      "create", "ls", "find", "str_replace_editor",
+    ];
+    const excludedTools = BUILTIN_CLI_TOOLS.filter((t) => customToolNames.has(t));
+
     this.sdkSession = await this.client.createSession({
       onPermissionRequest: approveAll,
       model: model.id,
       streaming: true,
       tools: sdkTools,
-      availableTools: [],
+      excludedTools,
       systemMessage: {
         mode: "replace",
         content: context.systemPrompt || "You are a helpful coding assistant.",

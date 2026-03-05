@@ -1,6 +1,6 @@
 {
   "name": "gh-copi",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "GitHub Copilot coding agent CLI — pi-mono + Copilot SDK",
   "type": "module",
   "main": "dist/main.js",

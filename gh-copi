@@ -1,0 +1,41 @@
+#!/bin/bash
+# gh-copi — GitHub Copilot coding agent CLI (gh extension entry point)
+#
+# Install: gh extension install <owner>/gh-copi
+# Usage:   gh copi [flags]
+
+set -e
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Find bun — check PATH, mise shims, common install locations
+find_bun() {
+  if command -v bun &>/dev/null; then
+    echo "bun"
+    return
+  fi
+  for candidate in \
+    "$HOME/.local/share/mise/shims/bun" \
+    "$HOME/.bun/bin/bun" \
+    "/usr/local/bin/bun"; do
+    if [ -x "$candidate" ]; then
+      echo "$candidate"
+      return
+    fi
+  done
+  return 1
+}
+
+BUN=$(find_bun) || {
+  echo "gh-copi requires Bun. Install it: https://bun.sh/docs/installation" >&2
+  echo "  curl -fsSL https://bun.sh/install | bash" >&2
+  exit 1
+}
+
+# First-run: install dependencies
+if [ ! -d "$DIR/node_modules" ]; then
+  echo "Installing dependencies (first run)..." >&2
+  (cd "$DIR" && "$BUN" install --frozen-lockfile 2>/dev/null || "$BUN" install) >&2
+fi
+
+exec "$BUN" "$DIR/src/main.ts" "$@"

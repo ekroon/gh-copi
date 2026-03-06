@@ -33,7 +33,7 @@ export class SSHTransport implements RemoteTransport {
   }
 
   async setup(): Promise<void> {
-    this.tempDir = await mkdtemp(join(tmpdir(), "gh-copi-ssh-"));
+    this.tempDir = await mkdtemp(join(tmpdir(), "gh-pico-ssh-"));
     this.controlSocket = join(this.tempDir, "ctrl.sock");
 
     const sshArgs = [

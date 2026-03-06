@@ -458,22 +458,22 @@ has a component-based architecture that maps to OpenTUI's React reconciler.
 
 ```bash
 # Local mode (default) — pi-mono's built-in tools, no remote connection
-gh copi
+gh pico
 
 # Codespace mode — tools execute on codespace via SSH
-gh copi -c my-codespace
+gh pico -c my-codespace
 
 # Multi-codespace — tools route by alias, picker on ambiguity
-gh copi -c cs1,cs2
+gh pico -c cs1,cs2
 
 # SSH target — tools execute on any SSH host
-gh copi --ssh user@host:/path/to/project
+gh pico --ssh user@host:/path/to/project
 
 # Devcontainer — tools execute inside local devcontainer
-gh copi --devcontainer
+gh pico --devcontainer
 
 # Resume previous session
-gh copi --resume
+gh pico --resume
 ```
 
 ---
@@ -481,7 +481,7 @@ gh copi --resume
 ## File Structure
 
 ```
-gh-copi/
+gh-pico/
 ├── package.json
 ├── tsconfig.json
 ├── src/
@@ -543,7 +543,7 @@ gh-copi/
 ## Quick Start (Copy-Paste for New Session)
 
 ```
-I want to build a TypeScript CLI tool called "gh-copi" built on top of the
+I want to build a TypeScript CLI tool called "gh-pico" built on top of the
 pi-mono coding agent framework (@mariozechner/pi-coding-agent) with Copilot SDK
 (@github/copilot-sdk) as the LLM backend.
 

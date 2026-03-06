@@ -8,7 +8,7 @@
 ## [0.2.0] — 2026-03-05
 
 ### Added
-- Initial gh-copi implementation — pi-mono + Copilot SDK coding agent CLI
+- Initial gh-pico implementation — pi-mono + Copilot SDK coding agent CLI
 - Release skill for automated version bumps and changelog generation
 
 ### Other

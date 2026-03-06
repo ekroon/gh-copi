@@ -1,4 +1,4 @@
-# Copilot Instructions for gh-copi
+# Copilot Instructions for gh-pico
 
 ## Commands
 
@@ -12,7 +12,7 @@ npx vitest run -t "should parse comma-separated"           # Single test by name
 
 ## Architecture
 
-gh-copi is a CLI tool that wires **two frameworks together**: the pi-mono coding agent framework provides the agent loop, TUI, tools, and session management; the Copilot SDK provides LLM access. The key integration point is `CopilotStreamBridge`.
+gh-pico is a CLI tool that wires **two frameworks together**: the pi-mono coding agent framework provides the agent loop, TUI, tools, and session management; the Copilot SDK provides LLM access. The key integration point is `CopilotStreamBridge`.
 
 ### The Bridge (copilot-stream-bridge.ts)
 

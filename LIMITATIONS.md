@@ -328,7 +328,7 @@ sessions) via `write_bash`/`read_bash`. Our custom `bash` tool conflicts by name
 We must exclude built-in `bash` to avoid "Tool names must be unique" errors, but
 this breaks subagents (they try `write_bash` → fails → infinite `task` recursion).
 
-**Solution**: Register an MCP shell server (`gh-copi-shell`) that provides a
+**Solution**: Register an MCP shell server (`gh-pico-shell`) that provides a
 `shell_execute` tool. Subagents use this instead of the broken PTY chain.
 We also exclude `write_bash`/`read_bash`/`list_bash`/`stop_bash` to prevent
 subagents from attempting the broken built-in PTY tools.

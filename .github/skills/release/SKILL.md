@@ -1,17 +1,17 @@
 ---
 name: release
 description: >
-  Release gh-copi: bump version, generate changelog, tag, and push to trigger
+  Release gh-pico: bump version, generate changelog, tag, and push to trigger
   the GitHub Actions release workflow. Use this skill whenever the user says
   "release", "cut a release", "ship it", "bump version", "publish a new version",
   "tag a release", "create release", or anything that implies they want to ship
-  a new version of gh-copi. Also trigger when the user asks about the release
+  a new version of gh-pico. Also trigger when the user asks about the release
   process, release checklist, or what version is next.
 ---
 
-# Release Skill — gh-copi
+# Release Skill — gh-pico
 
-This skill handles the full release flow for the `gh-copi` GitHub Copilot CLI extension.
+This skill handles the full release flow for the `gh-pico` GitHub Copilot CLI extension.
 The project uses tag-triggered GitHub Actions: pushing a `v*` tag runs tests, builds,
 and creates a GitHub Release with auto-generated notes.
 

@@ -38,7 +38,7 @@ export class CodespaceTransport implements RemoteTransport {
     this.sshHost = hostMatch[1];
 
     // 3. Create temp dir for config and control socket
-    this.tempDir = await mkdtemp(join(tmpdir(), "gh-copi-"));
+    this.tempDir = await mkdtemp(join(tmpdir(), "gh-pico-"));
     this.controlSocket = join(this.tempDir, "ctrl.sock");
     this.sshConfigPath = join(this.tempDir, "ssh_config");
 

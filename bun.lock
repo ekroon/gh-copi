@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "gh-copi",
+      "name": "gh-pico",
       "dependencies": {
         "@github/copilot-sdk": "^0.1.30",
         "@mariozechner/pi-agent-core": "^0.56",

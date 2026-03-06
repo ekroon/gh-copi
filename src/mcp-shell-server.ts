@@ -15,7 +15,7 @@ import { z } from "zod";
 import { spawn } from "child_process";
 
 const server = new McpServer({
-  name: "gh-copi-shell",
+  name: "gh-pico-shell",
   version: "1.0.0",
 });
 

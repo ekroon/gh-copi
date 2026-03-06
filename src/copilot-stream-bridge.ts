@@ -236,8 +236,8 @@ export class CopilotStreamBridge {
         });
 
         unsub = this.sdkSession.on((event: any) => {
-          // Debug: log all SDK events (set GH_COPI_DEBUG=1 to enable)
-          if (process.env.GH_COPI_DEBUG) {
+          // Debug: log all SDK events (set GH_PICO_DEBUG=1 to enable)
+          if (process.env.GH_PICO_DEBUG) {
             const summary = JSON.stringify(event.data || {}).slice(0, 200);
             process.stderr.write(`[bridge] SDK event: ${event.type} ${summary}\n`);
           }
@@ -508,7 +508,7 @@ export class CopilotStreamBridge {
       "mcp-shell-server.js",
     );
 
-    if (process.env.GH_COPI_DEBUG) {
+    if (process.env.GH_PICO_DEBUG) {
       process.stderr.write(`[bridge] Creating SDK session:\n`);
       process.stderr.write(`[bridge]   model: ${model.id}\n`);
       process.stderr.write(`[bridge]   custom tools: ${[...customToolNames].join(", ")}\n`);
@@ -523,7 +523,7 @@ export class CopilotStreamBridge {
       tools: sdkTools,
       excludedTools,
       mcpServers: {
-        "gh-copi-shell": {
+        "gh-pico-shell": {
           type: "local",
           command: "node",
           args: [mcpShellServerPath],

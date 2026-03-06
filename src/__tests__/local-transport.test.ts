@@ -10,7 +10,7 @@ describe("LocalTransport", () => {
 
   beforeEach(async () => {
     transport = new LocalTransport();
-    tempDir = await mkdtemp(join(tmpdir(), "gh-copi-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "gh-pico-test-"));
   });
 
   afterEach(async () => {

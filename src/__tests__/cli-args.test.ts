@@ -4,7 +4,7 @@ import { parseArgs } from "../main.js";
 describe("parseArgs", () => {
   // Helper: simulates process.argv (first 2 elements are node + script)
   function parse(...args: string[]) {
-    return parseArgs(["node", "gh-copi", ...args]);
+    return parseArgs(["node", "gh-pico", ...args]);
   }
 
   describe("defaults", () => {

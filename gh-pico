@@ -1,8 +1,8 @@
 #!/bin/bash
-# gh-copi — GitHub Copilot coding agent CLI (gh extension entry point)
+# gh-pico — GitHub Copilot coding agent CLI (gh extension entry point)
 #
-# Install: gh extension install <owner>/gh-copi
-# Usage:   gh copi [flags]
+# Install: gh extension install <owner>/gh-pico
+# Usage:   gh pico [flags]
 
 set -e
 
@@ -27,7 +27,7 @@ find_bun() {
 }
 
 BUN=$(find_bun) || {
-  echo "gh-copi requires Bun. Install it: https://bun.sh/docs/installation" >&2
+  echo "gh-pico requires Bun. Install it: https://bun.sh/docs/installation" >&2
   echo "  curl -fsSL https://bun.sh/install | bash" >&2
   exit 1
 }

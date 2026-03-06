@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * gh-copi — GitHub Copilot coding agent CLI
+ * gh-pico — GitHub Copilot coding agent CLI
  *
  * Built on pi-mono coding agent framework with Copilot SDK as LLM backend.
  *
  * Usage:
- *   gh copi                          # Local mode (default)
- *   gh copi -c my-codespace          # Codespace mode
- *   gh copi --ssh user@host:/path    # SSH mode
- *   gh copi --devcontainer           # Devcontainer mode
- *   gh copi --resume                 # Resume previous session
+ *   gh pico                          # Local mode (default)
+ *   gh pico -c my-codespace          # Codespace mode
+ *   gh pico --ssh user@host:/path    # SSH mode
+ *   gh pico --devcontainer           # Devcontainer mode
+ *   gh pico --resume                 # Resume previous session
  */
 import { execSync } from "node:child_process";
 import { CopilotClient } from "@github/copilot-sdk";
@@ -272,7 +272,7 @@ async function main() {
 
   // 12. Launch interactive TUI
   const mode = registry.getDefault()?.name ?? "local";
-  console.log(`\ngh-copi — ${mode} mode, model: ${model.name}\n`);
+  console.log(`\ngh-pico — ${mode} mode, model: ${model.name}\n`);
 
   const interactive = new InteractiveMode(session);
   await interactive.run();

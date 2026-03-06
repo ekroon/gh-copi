@@ -22,6 +22,7 @@ import {
 import type { Api } from "@mariozechner/pi-ai";
 
 import { CopilotStreamBridge } from "./copilot-stream-bridge.js";
+import type { SubagentEvent } from "./copilot-stream-bridge.js";
 import { LocalTransport } from "./transport/local.js";
 import { CodespaceTransport } from "./transport/codespace.js";
 import { SSHTransport } from "./transport/ssh.js";
@@ -204,7 +205,33 @@ async function main() {
 
   const { session } = await createAgentSession(sessionOptions);
 
-  // 9. Wire up tool result cache
+  // 9. Wire up subagent status display
+  bridge.setSubagentEventHandler((event: SubagentEvent) => {
+    let text: string;
+    switch (event.type) {
+      case "started":
+        text = `🚀 **${event.agentDisplayName}** started`;
+        break;
+      case "completed":
+        text = `✅ **${event.agentDisplayName}** completed`;
+        break;
+      case "failed":
+        text = `❌ **${event.agentDisplayName}** failed${event.error ? `: ${event.error}` : ""}`;
+        break;
+    }
+    (session.agent as any).emit({
+      type: "message_start",
+      message: {
+        role: "custom",
+        customType: "subagent",
+        display: true,
+        content: [{ type: "text", text }],
+        timestamp: Date.now(),
+      },
+    });
+  });
+
+  // 10. Wire up tool result cache
   const origTools = session.agent.state.tools;
   const wrappedTools = origTools.map((t: any) => ({
     ...t,
@@ -221,7 +248,7 @@ async function main() {
   }));
   session.agent.setTools(wrappedTools);
 
-  // 10. Handle reload lifecycle
+  // 11. Handle reload lifecycle
   const origReload = session.reload.bind(session);
   session.reload = async () => {
     await origReload();
@@ -243,14 +270,14 @@ async function main() {
     session.agent.setTools(newTools);
   };
 
-  // 11. Launch interactive TUI
+  // 12. Launch interactive TUI
   const mode = registry.getDefault()?.name ?? "local";
   console.log(`\ngh-copi — ${mode} mode, model: ${model.name}\n`);
 
   const interactive = new InteractiveMode(session);
   await interactive.run();
 
-  // 12. Cleanup
+  // 13. Cleanup
   await bridge.destroy();
   await registry.teardownAll();
   await client.stop();

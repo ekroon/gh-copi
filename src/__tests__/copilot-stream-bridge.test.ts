@@ -626,6 +626,71 @@ describe("CopilotStreamBridge", () => {
       expect(allText).toBe("After failure");
       expect(allText).not.toContain("should be hidden");
     }, 10000);
+
+    it("should call onSubagentEvent on started/completed/failed", async () => {
+      const subagentEvents: any[] = [];
+      const bridgeWithCallback = new CopilotStreamBridge({
+        client: client as any,
+        modelRegistry: modelRegistry as any,
+        providerName: "test-sdk",
+        onSubagentEvent: (event) => subagentEvents.push(event),
+      });
+      const fn = bridgeWithCallback.createStreamFn();
+      const model = makeModel();
+      const context = {
+        systemPrompt: "Test",
+        messages: [{ role: "user", content: "test" }],
+        tools: [],
+      };
+
+      const stream = fn(model, context as any);
+
+      setTimeout(async () => {
+        while (client.sessions.length === 0) await new Promise(r => setTimeout(r, 10));
+        const session = client.sessions[0];
+        session.emit({ type: "subagent.started", data: { toolCallId: "sa-1", agentName: "task", agentDisplayName: "Task Agent", agentDescription: "Runs tasks" } });
+        session.emit({ type: "subagent.completed", data: { toolCallId: "sa-1", agentName: "task", agentDisplayName: "Task Agent" } });
+        session.emit({ type: "subagent.started", data: { toolCallId: "sa-2", agentName: "explore", agentDisplayName: "Explore Agent", agentDescription: "Explores" } });
+        session.emit({ type: "subagent.failed", data: { toolCallId: "sa-2", agentName: "explore", agentDisplayName: "Explore Agent", error: "timeout" } });
+        session.emit({ type: "session.idle", data: {} });
+      }, 100);
+
+      for await (const _event of stream as any) { /* drain */ }
+
+      expect(subagentEvents).toHaveLength(4);
+      expect(subagentEvents[0]).toEqual({ type: "started", agentName: "task", agentDisplayName: "Task Agent", toolCallId: "sa-1" });
+      expect(subagentEvents[1]).toEqual({ type: "completed", agentName: "task", agentDisplayName: "Task Agent", toolCallId: "sa-1" });
+      expect(subagentEvents[2]).toEqual({ type: "started", agentName: "explore", agentDisplayName: "Explore Agent", toolCallId: "sa-2" });
+      expect(subagentEvents[3]).toEqual({ type: "failed", agentName: "explore", agentDisplayName: "Explore Agent", toolCallId: "sa-2", error: "timeout" });
+    }, 10000);
+
+    it("should support setSubagentEventHandler after construction", async () => {
+      const subagentEvents: any[] = [];
+      bridge.setSubagentEventHandler((event) => subagentEvents.push(event));
+      const fn = bridge.createStreamFn();
+      const model = makeModel();
+      const context = {
+        systemPrompt: "Test",
+        messages: [{ role: "user", content: "test" }],
+        tools: [],
+      };
+
+      const stream = fn(model, context as any);
+
+      setTimeout(async () => {
+        while (client.sessions.length === 0) await new Promise(r => setTimeout(r, 10));
+        const session = client.sessions[0];
+        session.emit({ type: "subagent.started", data: { toolCallId: "sa-x", agentName: "task", agentDisplayName: "Task Agent", agentDescription: "" } });
+        session.emit({ type: "subagent.completed", data: { toolCallId: "sa-x", agentName: "task", agentDisplayName: "Task Agent" } });
+        session.emit({ type: "session.idle", data: {} });
+      }, 100);
+
+      for await (const _event of stream as any) { /* drain */ }
+
+      expect(subagentEvents).toHaveLength(2);
+      expect(subagentEvents[0].type).toBe("started");
+      expect(subagentEvents[1].type).toBe("completed");
+    }, 10000);
   });
 
   describe("conversation serialization", () => {

@@ -21,11 +21,20 @@ import { createAssistantMessageEventStream } from "@mariozechner/pi-ai";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { ModelRegistry } from "@mariozechner/pi-coding-agent";
 
+export interface SubagentEvent {
+  type: "started" | "completed" | "failed";
+  agentName: string;
+  agentDisplayName: string;
+  toolCallId: string;
+  error?: string;
+}
+
 export interface CopilotStreamBridgeOptions {
   client: CopilotClient;
   modelRegistry: ModelRegistry;
   providerName?: string;
   onReload?: () => void;
+  onSubagentEvent?: (event: SubagentEvent) => void;
 }
 
 export class CopilotStreamBridge {
@@ -48,10 +57,22 @@ export class CopilotStreamBridge {
   // Used to filter subagent text/tool events from the main stream.
   private activeSubagents = new Set<string>();
 
+  // Callback for subagent lifecycle events (start/complete/fail)
+  private onSubagentEvent?: (event: SubagentEvent) => void;
+
   constructor(options: CopilotStreamBridgeOptions) {
     this.client = options.client;
     this.modelRegistry = options.modelRegistry;
     this.providerName = options.providerName ?? "copilot-sdk";
+    this.onSubagentEvent = options.onSubagentEvent;
+  }
+
+  /**
+   * Set the subagent event callback. Called after session creation
+   * since the session is needed to emit TUI events.
+   */
+  setSubagentEventHandler(handler: (event: SubagentEvent) => void): void {
+    this.onSubagentEvent = handler;
   }
 
   /**
@@ -198,9 +219,31 @@ export class CopilotStreamBridge {
           // Subagent lifecycle tracking
           if (event.type === "subagent.started") {
             this.activeSubagents.add(event.data.toolCallId);
+            this.onSubagentEvent?.({
+              type: "started",
+              agentName: event.data.agentName,
+              agentDisplayName: event.data.agentDisplayName,
+              toolCallId: event.data.toolCallId,
+            });
           }
-          if (event.type === "subagent.completed" || event.type === "subagent.failed") {
+          if (event.type === "subagent.completed") {
             this.activeSubagents.delete(event.data.toolCallId);
+            this.onSubagentEvent?.({
+              type: "completed",
+              agentName: event.data.agentName,
+              agentDisplayName: event.data.agentDisplayName,
+              toolCallId: event.data.toolCallId,
+            });
+          }
+          if (event.type === "subagent.failed") {
+            this.activeSubagents.delete(event.data.toolCallId);
+            this.onSubagentEvent?.({
+              type: "failed",
+              agentName: event.data.agentName,
+              agentDisplayName: event.data.agentDisplayName,
+              toolCallId: event.data.toolCallId,
+              error: event.data.error,
+            });
           }
 
           // Text deltas — skip subagent output (it stays in the toolHandler result)

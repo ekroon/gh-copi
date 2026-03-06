@@ -317,17 +317,24 @@ The bridge just needs to forward them to the SDK.
 ---
 
 ### 14. Subagents (task tool)
-**Status: ✅ CLEAN — use SDK directly**
+**Status: ⚠️ WORKAROUND — MCP shell server for bash conflict**
 
-Validated in `probe20-subagents.ts`. The Copilot CLI's `task` tool spawns subagents
-(explore, task, general-purpose, code-review) in separate context windows. The SDK
-emits `subagent.started`, `subagent.completed`, and `subagent.failed` events.
+The Copilot CLI's `task` tool spawns subagents (explore, task, general-purpose,
+code-review) in separate context windows. The SDK emits `subagent.started`,
+`subagent.completed`, and `subagent.failed` events.
+
+**Problem**: Built-in subagents depend on the CLI's built-in `bash` tool (PTY
+sessions) via `write_bash`/`read_bash`. Our custom `bash` tool conflicts by name.
+We must exclude built-in `bash` to avoid "Tool names must be unique" errors, but
+this breaks subagents (they try `write_bash` → fails → infinite `task` recursion).
+
+**Solution**: Register an MCP shell server (`gh-copi-shell`) that provides a
+`shell_execute` tool. Subagents use this instead of the broken PTY chain.
+We also exclude `write_bash`/`read_bash`/`list_bash`/`stop_bash` to prevent
+subagents from attempting the broken built-in PTY tools.
 
 **Requirement**: The SDK session must be **persistent** (not recreated per turn) for
 subagents to work, since they run asynchronously within the CLI process.
-
-The bridge needs to keep the SDK session alive and only recreate it when the tool
-set changes. See "Persistent SDK Session" in the architectural section.
 
 ---
 
@@ -403,7 +410,7 @@ automatically when appropriate.
 | Compaction | ✅ CLEAN | Pi-mono handles internally |
 | Multi-codespace | ✅ CLEAN | Tool + extension design |
 | Images/vision | ✅ CLEAN | Forward `ImageContent` as SDK attachments |
-| **Subagents** | ✅ CLEAN | SDK `task` tool + `subagent.*` events |
+| **Subagents** | ⚠️ WORKAROUND | MCP shell server bypasses bash name conflict |
 | **Plan mode** | ✅ CLEAN | SDK `session.rpc.mode.set/plan.read/update` |
 | **Code review** | ✅ CLEAN | SDK `customAgents` + `agent.select()` |
 | **Self-modification** | ✅ CLEAN | LLM creates extension → `session.reload()` → new tool active |

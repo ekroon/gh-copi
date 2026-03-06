@@ -20,6 +20,8 @@ import type {
 import { createAssistantMessageEventStream } from "@mariozechner/pi-ai";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { ModelRegistry } from "@mariozechner/pi-coding-agent";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 export interface SubagentEvent {
   type: "started" | "completed" | "failed";
@@ -210,7 +212,7 @@ export class CopilotStreamBridge {
         let streamEnded = false;
 
         // Safety timeout — prevents hanging if session.idle never fires (e.g., subagent stalls)
-        const STREAM_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+        const STREAM_TIMEOUT_MS = 120_000; // 2 minutes
         let unsub: () => void;
         const timeoutHandle = setTimeout(() => {
           if (streamEnded) return;
@@ -490,11 +492,28 @@ export class CopilotStreamBridge {
     ];
     const excludedTools = BUILTIN_CLI_TOOLS.filter((t) => customToolNames.has(t));
 
+    // Also exclude the PTY-dependent tools that break when bash is excluded.
+    // These tools exist but fail with "no command running" since the bash tool
+    // (which creates PTY sessions) is excluded. By excluding them too, subagents
+    // will use the MCP shell_execute tool instead.
+    if (excludedTools.includes("bash")) {
+      excludedTools.push("write_bash", "read_bash", "list_bash", "stop_bash");
+    }
+
+    // Register MCP shell server so subagents have shell access.
+    // The built-in bash is excluded (name conflict with our custom bash),
+    // so subagents need this MCP server for command execution.
+    const mcpShellServerPath = join(
+      dirname(fileURLToPath(import.meta.url)),
+      "mcp-shell-server.js",
+    );
+
     if (process.env.GH_COPI_DEBUG) {
       process.stderr.write(`[bridge] Creating SDK session:\n`);
       process.stderr.write(`[bridge]   model: ${model.id}\n`);
       process.stderr.write(`[bridge]   custom tools: ${[...customToolNames].join(", ")}\n`);
       process.stderr.write(`[bridge]   excluded built-in: ${excludedTools.join(", ")}\n`);
+      process.stderr.write(`[bridge]   MCP shell server: ${mcpShellServerPath}\n`);
     }
 
     this.sdkSession = await this.client.createSession({
@@ -503,6 +522,14 @@ export class CopilotStreamBridge {
       streaming: true,
       tools: sdkTools,
       excludedTools,
+      mcpServers: {
+        "gh-copi-shell": {
+          type: "local",
+          command: "node",
+          args: [mcpShellServerPath],
+          tools: ["*"],
+        },
+      },
       systemMessage: {
         mode: "replace",
         content: context.systemPrompt || "You are a helpful coding assistant.",

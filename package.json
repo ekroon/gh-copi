@@ -21,6 +21,7 @@
     "@mariozechner/pi-ai": "^0.56",
     "@mariozechner/pi-coding-agent": "^0.56",
     "@mariozechner/pi-tui": "^0.56",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@sinclair/typebox": "^0.34"
   },
   "devDependencies": {

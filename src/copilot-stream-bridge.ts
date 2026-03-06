@@ -234,6 +234,12 @@ export class CopilotStreamBridge {
         });
 
         unsub = this.sdkSession.on((event: any) => {
+          // Debug: log all SDK events (set GH_COPI_DEBUG=1 to enable)
+          if (process.env.GH_COPI_DEBUG) {
+            const summary = JSON.stringify(event.data || {}).slice(0, 200);
+            process.stderr.write(`[bridge] SDK event: ${event.type} ${summary}\n`);
+          }
+
           // Subagent lifecycle tracking
           if (event.type === "subagent.started") {
             this.activeSubagents.add(event.data.toolCallId);
@@ -477,11 +483,19 @@ export class CopilotStreamBridge {
     // Exclude built-in CLI tools that conflict with our custom tools.
     // This keeps built-in agents (task, explore, code-review, research) enabled.
     const customToolNames = new Set(sdkTools.map((t) => t.name));
+    // Only the 6 real built-in tools (confirmed via session.info events).
+    // Others like "read", "write", "ls", "find", "str_replace_editor" don't exist.
     const BUILTIN_CLI_TOOLS = [
-      "bash", "read", "edit", "write", "grep", "glob", "view",
-      "create", "ls", "find", "str_replace_editor",
+      "bash", "create", "edit", "glob", "grep", "view",
     ];
     const excludedTools = BUILTIN_CLI_TOOLS.filter((t) => customToolNames.has(t));
+
+    if (process.env.GH_COPI_DEBUG) {
+      process.stderr.write(`[bridge] Creating SDK session:\n`);
+      process.stderr.write(`[bridge]   model: ${model.id}\n`);
+      process.stderr.write(`[bridge]   custom tools: ${[...customToolNames].join(", ")}\n`);
+      process.stderr.write(`[bridge]   excluded built-in: ${excludedTools.join(", ")}\n`);
+    }
 
     this.sdkSession = await this.client.createSession({
       onPermissionRequest: approveAll,

@@ -460,6 +460,174 @@ describe("CopilotStreamBridge", () => {
     }, 10000);
   });
 
+  describe("subagent event filtering", () => {
+    it("should filter subagent text deltas from main stream", async () => {
+      const fn = bridge.createStreamFn();
+      const model = makeModel();
+      const context = {
+        systemPrompt: "Test",
+        messages: [{ role: "user", content: "spin a subagent" }],
+        tools: [{
+          name: "bash",
+          description: "Run bash",
+          parameters: { type: "object", properties: {} },
+          execute: async () => ({
+            content: [{ type: "text" as const, text: "done" }],
+          }),
+        }],
+      };
+
+      const stream = fn(model, context as any);
+
+      setTimeout(async () => {
+        while (client.sessions.length === 0) await new Promise(r => setTimeout(r, 10));
+        const session = client.sessions[0];
+        // Main agent text
+        session.emit({ type: "assistant.message_delta", data: { deltaContent: "Main text. " } });
+        // Subagent starts
+        session.emit({ type: "subagent.started", data: { toolCallId: "sub-1", agentName: "task", agentDisplayName: "Task Agent", agentDescription: "Runs tasks" } });
+        // Subagent text (should be filtered)
+        session.emit({ type: "assistant.message_delta", data: { deltaContent: "Subagent output", parentToolCallId: "sub-1" } });
+        session.emit({ type: "assistant.message_delta", data: { deltaContent: " more subagent", parentToolCallId: "sub-1" } });
+        // Subagent completes
+        session.emit({ type: "subagent.completed", data: { toolCallId: "sub-1", agentName: "task", agentDisplayName: "Task Agent" } });
+        // More main agent text
+        session.emit({ type: "assistant.message_delta", data: { deltaContent: "Back to main." } });
+        session.emit({ type: "session.idle", data: {} });
+      }, 100);
+
+      const events: any[] = [];
+      for await (const event of stream as any) {
+        events.push(event);
+      }
+
+      // Only main text should appear, not subagent text
+      const textDeltas = events.filter(e => e.type === "text_delta");
+      const allText = textDeltas.map(e => e.delta).join("");
+      expect(allText).toBe("Main text. Back to main.");
+      expect(allText).not.toContain("Subagent output");
+    }, 10000);
+
+    it("should filter subagent-internal tool calls from top-level", async () => {
+      const fn = bridge.createStreamFn();
+      const model = makeModel();
+      const context = {
+        systemPrompt: "Test",
+        messages: [{ role: "user", content: "test" }],
+        tools: [{
+          name: "bash",
+          description: "Run bash",
+          parameters: { type: "object", properties: {} },
+          execute: async () => ({
+            content: [{ type: "text" as const, text: "result" }],
+          }),
+        }],
+      };
+
+      const stream = fn(model, context as any);
+
+      setTimeout(async () => {
+        while (client.sessions.length === 0) await new Promise(r => setTimeout(r, 10));
+        const session = client.sessions[0];
+        // Top-level tool call (should be tracked)
+        session.emit({
+          type: "tool.execution_start",
+          data: { toolCallId: "top-1", toolName: "bash", arguments: { command: "ls" } },
+        });
+        // Subagent starts within that tool call
+        session.emit({ type: "subagent.started", data: { toolCallId: "top-1", agentName: "task", agentDisplayName: "Task" } });
+        // Subagent-internal tool call (should be filtered)
+        session.emit({
+          type: "tool.execution_start",
+          data: { toolCallId: "sub-tool-1", toolName: "bash", arguments: { command: "npm test" }, parentToolCallId: "top-1" },
+        });
+        session.emit({
+          type: "tool.execution_complete",
+          data: { toolCallId: "sub-tool-1", parentToolCallId: "top-1" },
+        });
+        // Top-level tool completes
+        session.emit({ type: "subagent.completed", data: { toolCallId: "top-1", agentName: "task", agentDisplayName: "Task" } });
+        session.emit({ type: "tool.execution_complete", data: { toolCallId: "top-1" } });
+        session.emit({ type: "session.idle", data: {} });
+      }, 100);
+
+      const events: any[] = [];
+      for await (const event of stream as any) {
+        events.push(event);
+      }
+
+      // Only top-level tool call should appear
+      const toolStarts = events.filter(e => e.type === "toolcall_start");
+      expect(toolStarts).toHaveLength(1);
+      const toolEnds = events.filter(e => e.type === "toolcall_end");
+      expect(toolEnds).toHaveLength(1);
+      expect(toolEnds[0].toolCall.name).toBe("bash");
+    }, 10000);
+
+    it("should not filter text without parentToolCallId", async () => {
+      const fn = bridge.createStreamFn();
+      const model = makeModel();
+      const context = {
+        systemPrompt: "Test",
+        messages: [{ role: "user", content: "hello" }],
+        tools: [],
+      };
+
+      const stream = fn(model, context as any);
+
+      setTimeout(async () => {
+        while (client.sessions.length === 0) await new Promise(r => setTimeout(r, 10));
+        const session = client.sessions[0];
+        session.emit({ type: "assistant.message_delta", data: { deltaContent: "Normal response" } });
+        session.emit({ type: "session.idle", data: {} });
+      }, 100);
+
+      const events: any[] = [];
+      for await (const event of stream as any) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter(e => e.type === "text_delta");
+      expect(textDeltas).toHaveLength(1);
+      expect(textDeltas[0].delta).toBe("Normal response");
+    }, 10000);
+
+    it("should clean up activeSubagents on failed subagent", async () => {
+      const fn = bridge.createStreamFn();
+      const model = makeModel();
+      const context = {
+        systemPrompt: "Test",
+        messages: [{ role: "user", content: "test" }],
+        tools: [],
+      };
+
+      const stream = fn(model, context as any);
+
+      setTimeout(async () => {
+        while (client.sessions.length === 0) await new Promise(r => setTimeout(r, 10));
+        const session = client.sessions[0];
+        session.emit({ type: "subagent.started", data: { toolCallId: "sub-fail", agentName: "task", agentDisplayName: "Task", agentDescription: "" } });
+        // Subagent text (filtered)
+        session.emit({ type: "assistant.message_delta", data: { deltaContent: "should be hidden", parentToolCallId: "sub-fail" } });
+        // Subagent fails
+        session.emit({ type: "subagent.failed", data: { toolCallId: "sub-fail", agentName: "task", agentDisplayName: "Task", error: "timeout" } });
+        // Text after failure (should NOT be filtered — subagent no longer active)
+        session.emit({ type: "assistant.message_delta", data: { deltaContent: "After failure" } });
+        session.emit({ type: "session.idle", data: {} });
+      }, 100);
+
+      const events: any[] = [];
+      for await (const event of stream as any) {
+        events.push(event);
+      }
+
+      const textDeltas = events.filter(e => e.type === "text_delta");
+      const allText = textDeltas.map(e => e.delta).join("");
+      expect(allText).toBe("After failure");
+      expect(allText).not.toContain("should be hidden");
+    }, 10000);
+  });
+
   describe("conversation serialization", () => {
     it("should serialize user messages", async () => {
       const fn = bridge.createStreamFn();

@@ -44,6 +44,10 @@ export class CopilotStreamBridge {
   // Reference to current pi-mono tools for SDK handler dispatch
   private currentTools: any[] = [];
 
+  // Active subagent tracking — toolCallIds of running subagents.
+  // Used to filter subagent text/tool events from the main stream.
+  private activeSubagents = new Set<string>();
+
   constructor(options: CopilotStreamBridgeOptions) {
     this.client = options.client;
     this.modelRegistry = options.modelRegistry;
@@ -99,8 +103,7 @@ export class CopilotStreamBridge {
     this.pendingFinalResponse = null;
     this.pendingUsage = null;
     this.toolResultCache.clear();
-
-    // Re-register the provider (reload resets the API registry)
+    this.activeSubagents.clear();
     this.modelRegistry.registerProvider(this.providerName, {
       api: `${this.providerName}-api` as Api,
       apiKey: token,
@@ -123,6 +126,7 @@ export class CopilotStreamBridge {
     this.toolResultCache.clear();
     this.pendingFinalResponse = null;
     this.pendingUsage = null;
+    this.activeSubagents.clear();
   }
 
   // ─── Core stream function ──────────────────────────────────────────────────
@@ -191,8 +195,19 @@ export class CopilotStreamBridge {
         });
 
         const unsub = this.sdkSession.on((event: any) => {
-          // Text deltas
+          // Subagent lifecycle tracking
+          if (event.type === "subagent.started") {
+            this.activeSubagents.add(event.data.toolCallId);
+          }
+          if (event.type === "subagent.completed" || event.type === "subagent.failed") {
+            this.activeSubagents.delete(event.data.toolCallId);
+          }
+
+          // Text deltas — skip subagent output (it stays in the toolHandler result)
           if (event.type === "assistant.message_delta") {
+            if (event.data.parentToolCallId && this.activeSubagents.has(event.data.parentToolCallId)) {
+              return; // Subagent text — don't mix into main stream
+            }
             const delta: string = event.data.deltaContent;
             if (phase === "initial") {
               fullText += delta;
@@ -230,8 +245,11 @@ export class CopilotStreamBridge {
             });
           }
 
-          // Tool execution tracking
+          // Tool execution tracking — skip subagent-internal tool calls
           if (event.type === "tool.execution_start") {
+            if (event.data.parentToolCallId) {
+              return; // Subagent's internal tool call — don't track as top-level
+            }
             toolCalls.push({
               toolCallId: event.data.toolCallId,
               toolName: event.data.toolName,
@@ -239,6 +257,9 @@ export class CopilotStreamBridge {
             });
           }
           if (event.type === "tool.execution_complete") {
+            if (event.data.parentToolCallId) {
+              return; // Subagent's internal tool completion
+            }
             phase = "after_tools";
           }
 

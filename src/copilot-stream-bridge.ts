@@ -207,6 +207,24 @@ export class CopilotStreamBridge {
         }> = [];
         let totalUsage = { input: 0, output: 0 };
         let thinkingIndex = -1;
+        let streamEnded = false;
+
+        // Safety timeout — prevents hanging if session.idle never fires (e.g., subagent stalls)
+        const STREAM_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+        let unsub: () => void;
+        const timeoutHandle = setTimeout(() => {
+          if (streamEnded) return;
+          streamEnded = true;
+          unsub?.();
+          partial.stopReason = "error";
+          partial.errorMessage = `Request timed out after ${STREAM_TIMEOUT_MS / 1000}s waiting for response`;
+          stream.push({
+            type: "error",
+            reason: "error",
+            error: { ...partial },
+          });
+          stream.end({ ...partial });
+        }, STREAM_TIMEOUT_MS);
 
         stream.push({ type: "start", partial: { ...partial } });
         stream.push({
@@ -215,7 +233,7 @@ export class CopilotStreamBridge {
           partial: { ...partial },
         });
 
-        const unsub = this.sdkSession.on((event: any) => {
+        unsub = this.sdkSession.on((event: any) => {
           // Subagent lifecycle tracking
           if (event.type === "subagent.started") {
             this.activeSubagents.add(event.data.toolCallId);
@@ -315,6 +333,8 @@ export class CopilotStreamBridge {
           // Session idle — turn complete
           if (event.type === "session.idle") {
             unsub();
+            clearTimeout(timeoutHandle);
+            streamEnded = true;
             partial.content[0] = { type: "text", text: fullText };
             stream.push({
               type: "text_end",
@@ -379,6 +399,8 @@ export class CopilotStreamBridge {
           // Error handling
           if (event.type === "session.error") {
             unsub();
+            clearTimeout(timeoutHandle);
+            streamEnded = true;
             partial.stopReason = "error";
             partial.errorMessage = event.data.message;
             stream.push({
